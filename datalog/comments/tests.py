@@ -20,6 +20,12 @@ def data_writer(writer_func):
 
     This is likely to run in an external transaction, but the decorator also
     opens a new transaction to be safe.
+
+    All the example operations below follow the convention that models are
+    read-only.  With some model tweaks we can probably effectively enforce
+    that: only use models to read the data, use all the filtering niceties, but
+    never use them directly to write to it, and strongly nudge developers in
+    the direction of using data_writers.
     """
 
     @functools.wraps(writer_func)
