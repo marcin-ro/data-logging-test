@@ -36,10 +36,14 @@ class DataLog(models.Model):
 
     operation_uuid = models.UUIDField(primary_key=True, default=uuid4)
     operation_name = models.TextField()
+    created_ts = models.DateTimeField(auto_now_add=True)
+
+    data = models.TextField()
+
+    # Store the source with version to make it simpler to figure out which
+    # entries were made with buggy code.
     source = models.TextField()
     source_version = models.TextField()
-    created_ts = models.DateTimeField(auto_now_add=True)
-    data = models.TextField()
 
     class Meta:
         get_latest_by = "created_ts"
