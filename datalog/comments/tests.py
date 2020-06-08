@@ -12,7 +12,9 @@ def data_writer(writer_func):
     """A decorator that plugs writer_func into the logging machinery.
 
     It's dead simple now.  It limits writer_func to only accept kwargs to make
-    all stored log entries consistent and annotated.
+    all stored log entries consistent and annotated.  It requires that all the
+    data for the writer func is passed explicitly, via simple objects
+    serializable to JSON (with Django extensions to allow UUID).
 
     Ideally it would detect nested calls, so that e.g. create_comment below
     would call store_comment_view and have those data_writers add two separate
@@ -21,11 +23,16 @@ def data_writer(writer_func):
     This is likely to run in an external transaction, but the decorator also
     opens a new transaction to be safe.
 
-    All the example operations below follow the convention that models are
-    read-only.  With some model tweaks we can probably effectively enforce
-    that: only use models to read the data, use all the filtering niceties, but
-    never use them directly to write to it, and strongly nudge developers in
-    the direction of using data_writers.
+    All the example operations below follow the convention that outside of
+    data_writers models are read-only.  With some model tweaks we can probably
+    effectively enforce that: only use models to read the data, use all the
+    filtering niceties, but never use them directly to write to it, and
+    strongly nudge developers in the direction of using data_writers.
+
+    The writer functions do not see DataLog entries directly and would have to
+    do extra work to get to them; we can probably work with Postgresql
+    permissions to prevent that if we really want to, but it's probably not
+    necessary.
     """
 
     @functools.wraps(writer_func)
