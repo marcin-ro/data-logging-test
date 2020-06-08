@@ -10,19 +10,28 @@ from .models import Comment, CommentView, DataLog
 
 def data_writer(writer_func):
     """A decorator that plugs writer_func into the logging machinery.
+
+    It's dead simple now.  It limits writer_func to only accept kwargs to make
+    all stored log entries consistent and annotated.
+
+    Ideally it would detect nested calls, so that e.g. create_comment below
+    would call store_comment_view and have those data_writers add two separate
+    entries, but connected into a higher-level changeset.
+
+    This is likely to run in an external transaction, but the decorator also
+    opens a new transaction to be safe.
     """
 
     @functools.wraps(writer_func)
     def wrapper(**kwargs):
-        # In practice this is likely to run in a higher-level operation, but it
-        # does not hurt to open a transaction here to be independent of that.
         with atomic():
             # We can get a hold of the log entry here and provide it to all
             # operations, return it, connect it to higher-level operations (we can
             # detect that this is a nested data_writer).
             log = DataLog.objects.create(
-                # We could also include Pawel's idea of adding an object's hash
-                # here, but the calling code would be responsible of passing it here.
+                # We could also include the idea of adding an object's hash and
+                # use it to prevent parallel operations on the same object, but
+                # the calling code would be responsible of passing it here.
                 operation_name=writer_func.__name__,
                 data=DjangoJSONEncoder().encode(kwargs),
             )
@@ -50,6 +59,8 @@ def create_comment(
 
 @data_writer
 def edit_comment(comment_uuid: uuid.UUID, text: str):
+    """Edit an existing comment.
+    """
     rows_matched = Comment.objects.filter(uuid=comment_uuid).update(text=text)
     if rows_matched != 1:
         raise Exception("oh no")
@@ -57,6 +68,8 @@ def edit_comment(comment_uuid: uuid.UUID, text: str):
 
 @data_writer
 def delete_comment(comment_uuid: uuid.UUID):
+    """Delete a comment.
+    """
     rows_deleted = Comment.objects.filter(uuid=comment_uuid).delete()
     if rows_deleted != 1:
         raise Exception("oh no")
@@ -64,6 +77,10 @@ def delete_comment(comment_uuid: uuid.UUID):
 
 @data_writer
 def store_comment_view(comment_uuid: uuid.UUID, viewer_uuid: uuid.UUID) -> CommentView:
+    """Store the information that someone viewed a comment.
+
+    (very ineffective, but this is for demonstration only)
+    """
     return CommentView.objects.create(
         comment_uuid=comment_uuid, viewer_uuid=viewer_uuid
     )
